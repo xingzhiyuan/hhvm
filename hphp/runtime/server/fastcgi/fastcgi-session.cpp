@@ -479,6 +479,9 @@ void FastCGISession::onRecordImpl(const fcgi::abort_record* rec) {
     return;
   }
 
+  /**/
+  m_transport->setUserAborted();
+
   writeEndRequest(m_requestId, 1, fcgi::REQUEST_COMPLETE);
   m_aborting = true; // don't try to write REQUEST_COMPLETE again
 

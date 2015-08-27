@@ -80,6 +80,19 @@ struct FileOpenException : Exception {
 };
 
 ///////////////////////////////////////////////////////////////////////////////
+
+struct UserAbortException : Exception {
+  explicit UserAbortException(const char *useraddr, uint16_t userport,
+       const char *requesturl, const char *serveraddr, uint16_t serverport)
+      : Exception("User(%s:%d) abort request: %s, Server(%s:%d)",
+        useraddr, userport, requesturl, serveraddr, serverport) {
+  }
+
+  EXCEPTION_COMMON_IMPL(UserAbortException);
+};
+
+///////////////////////////////////////////////////////////////////////////////
+
 }
 
 #endif // incl_HPHP_EXCEPTION_H_
