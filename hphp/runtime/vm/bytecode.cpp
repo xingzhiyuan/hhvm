@@ -7433,7 +7433,7 @@ void dispatchImpl() {
                       g_context->getRequestUrl().c_str(),               \
                       transport->getServerAddr().c_str(),               \
                       transport->getServerPort());                      \
-      return retAddr;                                                   \
+      return;                                                           \
     }                                                                   \
     goto *optab[uint8_t(op)];                                           \
 } while (0)
