@@ -224,6 +224,12 @@ void FastCGISession::dropConnection() {
   //
   // NB: If there are any pending writes they will all be failed. The last one
   // to fail will delete us.
+
+  /* Set connect closed flag so that the script can be aborted. */ 
+  if (m_transport) {
+    m_transport->setUserAborted();
+  }
+
   m_sock->closeWithReset();
 }
 
