@@ -227,7 +227,7 @@ void FastCGISession::dropConnection() {
 
   /* Set connect closed flag so that the script can be aborted. */ 
   if (m_transport) {
-    m_transport->setUserAborted();
+    m_transport->setConnTobeClosed();
   }
 
   m_sock->closeWithReset();
@@ -486,7 +486,7 @@ void FastCGISession::onRecordImpl(const fcgi::abort_record* rec) {
   }
 
   /**/
-  m_transport->setUserAborted();
+  m_transport->setConnTobeClosed();
 
   writeEndRequest(m_requestId, 1, fcgi::REQUEST_COMPLETE);
   m_aborting = true; // don't try to write REQUEST_COMPLETE again

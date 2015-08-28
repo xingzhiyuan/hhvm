@@ -446,7 +446,7 @@ static void handle_exception_helper(bool& ret,
     if (richErrorMsg) {
       handle_exception_append_bt(errorMsg, e);
     }
-  } catch (const UserAbortException &e) {
+  } catch (const ScriptAbortForConnClosedException &e) {
     ret = false;
     error = true;
     Logger::LogHeader = true;

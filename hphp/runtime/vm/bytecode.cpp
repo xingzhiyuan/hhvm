@@ -7427,8 +7427,9 @@ void dispatchImpl() {
             Trace::trace("dispatch: %d: %s\n", pcOff(),                 \
                          opcodeToName(op)));                            \
     Transport *transport = g_context->getTransport();                   \
-    if (transport && transport->isUserAborted()) {                      \
-      throw UserAbortException(transport->getRemoteAddr(),              \
+    if (transport && transport->isConnTobeClosed()) {                   \
+      throw ScriptAbortForConnClosedException(                          \
+                      transport->getRemoteAddr(),                       \
                       transport->getRemotePort(),                       \
                       g_context->getRequestUrl().c_str(),               \
                       transport->getServerAddr().c_str(),               \

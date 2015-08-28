@@ -420,8 +420,8 @@ public:
   void setSSL() {m_isSSL = true;}
   bool isSSL() const {return m_isSSL;}
 
-  void setUserAborted() {user_aborted = true;}
-  bool isUserAborted() const {return user_aborted;}
+  void setConnTobeClosed() {conn_tobeclosed= true;}
+  bool isConnTobeClosed() const {return conn_tobeclosed;}
 
 protected:
   /**
@@ -490,7 +490,7 @@ protected:
 
   ThreadType m_threadType;
 
-  bool user_aborted{false};
+  bool conn_tobeclosed{false};
 
   // helpers
   void parseGetParams();
