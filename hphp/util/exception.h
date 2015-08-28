@@ -88,7 +88,7 @@ struct ScriptAbortForConnClosedException : Exception {
         useraddr, userport, requesturl, serveraddr, serverport) {
   }
 
-  EXCEPTION_COMMON_IMPL(UserAbortException);
+  EXCEPTION_COMMON_IMPL(ScriptAbortForConnClosedException);
 };
 
 ///////////////////////////////////////////////////////////////////////////////
