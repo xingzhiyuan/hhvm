@@ -446,6 +446,13 @@ static void handle_exception_helper(bool& ret,
     if (richErrorMsg) {
       handle_exception_append_bt(errorMsg, e);
     }
+  } catch (const ScriptAbortForConnClosedException &e) {
+    ret = false;
+    error = true;
+    Logger::LogHeader = true;
+    errorMsg = e.what();
+    Logger::Warning("%s", errorMsg.c_str());
+    Logger::LogHeader = false;
   } catch (const Exception &e) {
     bool oldRet = ret;
     bool origError = error;

@@ -420,6 +420,9 @@ public:
   void setSSL() {m_isSSL = true;}
   bool isSSL() const {return m_isSSL;}
 
+  void setConnTobeClosed() {conn_tobeclosed= true;}
+  bool isConnTobeClosed() const {return conn_tobeclosed;}
+
 protected:
   /**
    * Parameter parsing in this class is done by making just one copy of the
@@ -486,6 +489,8 @@ protected:
   CompressionDecision m_compressionDecision;
 
   ThreadType m_threadType;
+
+  bool conn_tobeclosed{false};
 
   // helpers
   void parseGetParams();

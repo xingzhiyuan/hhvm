@@ -80,6 +80,19 @@ struct FileOpenException : Exception {
 };
 
 ///////////////////////////////////////////////////////////////////////////////
+
+struct ScriptAbortForConnClosedException : Exception {
+  explicit ScriptAbortForConnClosedException(const char *useraddr, uint16_t userport,
+       const char *requesturl, const char *serveraddr, uint16_t serverport)
+      : Exception("Script aborted for connection to be closed: User(%s:%d), request: %s, Server(%s:%d)",
+        useraddr, userport, requesturl, serveraddr, serverport) {
+  }
+
+  EXCEPTION_COMMON_IMPL(ScriptAbortForConnClosedException);
+};
+
+///////////////////////////////////////////////////////////////////////////////
+
 }
 
 #endif // incl_HPHP_EXCEPTION_H_

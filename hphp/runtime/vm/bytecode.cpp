@@ -7426,6 +7426,16 @@ void dispatchImpl() {
     ONTRACE(1,                                                          \
             Trace::trace("dispatch: %d: %s\n", pcOff(),                 \
                          opcodeToName(op)));                            \
+    Transport *transport = g_context->getTransport();                   \
+    if (transport && transport->isConnTobeClosed()) {                   \
+      throw ScriptAbortForConnClosedException(                          \
+                      transport->getRemoteAddr(),                       \
+                      transport->getRemotePort(),                       \
+                      g_context->getRequestUrl().c_str(),               \
+                      transport->getServerAddr().c_str(),               \
+                      transport->getServerPort());                      \
+      return;                                                           \
+    }                                                                   \
     goto *optab[uint8_t(op)];                                           \
 } while (0)
 
