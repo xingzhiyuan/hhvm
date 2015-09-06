@@ -7348,6 +7348,15 @@ void interpOne##opcode(ActRec* ar, Cell* sp, Offset pcOff) {            \
           "interpOne" #opcode " before (fp,sp)", vmfp(), vmsp());       \
   assert(*reinterpret_cast<const Op*>(vmpc()) == Op::opcode);           \
   Stats::inc(Stats::Instr_InterpOne ## opcode);                         \
+  Transport *transport = g_context->getTransport();                     \
+  if (transport && transport->isConnTobeClosed()) {                     \
+    throw ScriptAbortForConnClosedException(                            \
+                    transport->getRemoteAddr(),                         \
+                    transport->getRemotePort(),                         \
+                    g_context->getRequestUrl().c_str(),                 \
+                    transport->getServerAddr().c_str(),                 \
+                    transport->getServerPort());                        \
+  }                                                                     \
   if (Trace::moduleEnabled(Trace::interpOne, 1)) {                      \
     static const StringData* cat = makeStaticString("interpOne");       \
     static const StringData* name = makeStaticString(#opcode);          \
