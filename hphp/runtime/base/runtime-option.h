@@ -121,6 +121,7 @@ public:
   static bool ServerThreadRoundRobin;
   static int ServerThreadDropCacheTimeoutSeconds;
   static int ServerThreadJobLIFOSwitchThreshold;
+  static int ThreadJobAbortWithConnClosed;
   static int ServerThreadJobMaxQueuingMilliSeconds;
   static bool ServerThreadDropStack;
   static bool ServerHttpSafeMode;

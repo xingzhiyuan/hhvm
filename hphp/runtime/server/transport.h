@@ -421,7 +421,8 @@ public:
   bool isSSL() const {return m_isSSL;}
 
   void setConnTobeClosed() {conn_tobeclosed= true;}
-  bool isConnTobeClosed() const {return conn_tobeclosed;}
+  bool isConnTobeClosed() const
+  {return RuntimeOption::ThreadJobAbortWithConnClosed && conn_tobeclosed;}
 
 protected:
   /**
