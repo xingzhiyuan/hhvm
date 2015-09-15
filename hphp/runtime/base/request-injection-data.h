@@ -75,7 +75,8 @@ struct RequestInjectionData {
   static const ssize_t DebuggerHookFlag     = 1 << 9;
   static const ssize_t CPUTimedOutFlag      = 1 << 10;
   static const ssize_t IntervalTimerFlag    = 1 << 11;
-  static const ssize_t LastFlag             = IntervalTimerFlag;
+  static const ssize_t ConnTobeClosedFlag   = 1 << 12;
+  static const ssize_t LastFlag             = ConnTobeClosedFlag;
   // flags that shouldn't be cleared by fetchAndClearFlags, because:
   // fetchAndClearFlags is only supposed to touch flags related to PHP-visible
   // signals/exceptions and resource limits
@@ -315,6 +316,9 @@ private:
   void setDebuggerSignalFlag();
   void setIntervalTimerFlag();
   ssize_t fetchAndClearFlags();
+
+  void setConnTobeClosedFlag();
+  void clearConnTobeClosedFlag();
 
   inline bool checkXenonSignalFlag() {
     return getConditionFlags()->load() & RequestInjectionData::XenonSignalFlag;

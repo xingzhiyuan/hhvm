@@ -7350,12 +7350,7 @@ void interpOne##opcode(ActRec* ar, Cell* sp, Offset pcOff) {            \
   Stats::inc(Stats::Instr_InterpOne ## opcode);                         \
   Transport *transport = g_context->getTransport();                     \
   if (transport && transport->isConnTobeClosed()) {                     \
-    throw ScriptAbortForConnClosedException(                            \
-                    transport->getRemoteAddr(),                         \
-                    transport->getRemotePort(),                         \
-                    g_context->getRequestUrl().c_str(),                 \
-                    transport->getServerAddr().c_str(),                 \
-                    transport->getServerPort());                        \
+    throw ScriptAbortForConnClosedException();                          \
   }                                                                     \
   if (Trace::moduleEnabled(Trace::interpOne, 1)) {                      \
     static const StringData* cat = makeStaticString("interpOne");       \
@@ -7437,12 +7432,7 @@ void dispatchImpl() {
                          opcodeToName(op)));                            \
     Transport *transport = g_context->getTransport();                   \
     if (transport && transport->isConnTobeClosed()) {                   \
-      throw ScriptAbortForConnClosedException(                          \
-                      transport->getRemoteAddr(),                       \
-                      transport->getRemotePort(),                       \
-                      g_context->getRequestUrl().c_str(),               \
-                      transport->getServerAddr().c_str(),               \
-                      transport->getServerPort());                      \
+      throw ScriptAbortForConnClosedException();                        \
       return;                                                           \
     }                                                                   \
     goto *optab[uint8_t(op)];                                           \

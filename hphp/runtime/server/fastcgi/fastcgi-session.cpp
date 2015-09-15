@@ -18,6 +18,7 @@
 #include "hphp/runtime/server/fastcgi/fastcgi-server.h"
 #include "hphp/util/logger.h"
 
+#include <signal.h>
 #include <folly/Memory.h>
 #include <folly/MoveWrapper.h>
 #include <folly/io/Cursor.h>
@@ -226,9 +227,7 @@ void FastCGISession::dropConnection() {
   // to fail will delete us.
 
   /* Set connect closed flag so that the script can be aborted. */ 
-  if (m_transport) {
-    m_transport->setConnTobeClosed();
-  }
+  notifyThread();
 
   m_sock->closeWithReset();
   Logger::Warning("Connection(User: %s:%d) closed with reset.",
@@ -345,6 +344,20 @@ void FastCGISession::writeSuccess() noexcept {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+void FastCGISession::notifyThread() {
+  if (m_transport) {
+    m_transport->setConnTobeClosed();
+  }
+
+  if (RuntimeOption::ThreadJobAbortWithConnClosed && m_job->isTidSet()) {
+    int ret = pthread_kill(m_job->getTid(), SIGQUIT);
+    if (ret == ESRCH) {
+      Logger::Error("Thread %x is non-existent(Never Created or Already Quit)!",
+        (unsigned int)m_job->getTid());
+    }
+  }
+}
 
 void FastCGISession::onStdOut(std::unique_ptr<IOBuf> chain) {
   // FastCGITransport doesn't run in the same event base. Calling into internal
@@ -490,7 +503,7 @@ void FastCGISession::onRecordImpl(const fcgi::abort_record* rec) {
   /**/
   Logger::Warning("Connection(User: %s:%d) received user abort request.",
     m_transport->getRemoteAddr(), m_transport->getRemotePort());
-  m_transport->setConnTobeClosed();
+  notifyThread();
 
   writeEndRequest(m_requestId, 1, fcgi::REQUEST_COMPLETE);
   m_aborting = true; // don't try to write REQUEST_COMPLETE again
@@ -540,7 +553,8 @@ void FastCGISession::onStream(const fcgi::params_record* rec,
 
     // This enqueue call would be safe from any thread because as the
     // JobQueueDispatcher is synchronized
-    m_dispatcher.enqueue(std::make_shared<FastCGIJob>(m_transport));
+    m_job = std::make_shared<FastCGIJob>(m_transport);
+    m_dispatcher.enqueue(m_job);
   }
 }
 
