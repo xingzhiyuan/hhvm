@@ -193,10 +193,21 @@ ssize_t check_request_surprise(ThreadInfo* info) {
   bool do_memExceeded = (flags & RequestInjectionData::MemExceededFlag);
   bool do_signaled = (flags & RequestInjectionData::SignaledFlag);
   bool do_intervalTimer = (flags & RequestInjectionData::IntervalTimerFlag);
+  bool do_connTobeClosed = (flags & RequestInjectionData::ConnTobeClosedFlag);
 
   // Start with any pending exception that might be on the thread.
   auto pendingException = info->m_pendingException;
   info->m_pendingException = nullptr;
+
+  if (do_connTobeClosed) {
+    p.setCPUTimeout(0);  // Stop CPU timer so we won't time out twice.
+    p.setTimeout(0);     // Stop wall timer so we won't time out twice.
+    if (pendingException) {
+      p.setConnTobeClosedFlag();
+    } else {
+      pendingException = new ScriptAbortForConnClosedException();
+    }
+  }
 
   if (do_timedout) {
     p.setCPUTimeout(0);  // Stop CPU timer so we won't time out twice.

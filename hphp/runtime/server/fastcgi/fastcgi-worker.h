@@ -35,16 +35,22 @@ class FastCGITransportTraits;
  * send data back to the FastCGI client.
  */
 struct FastCGIJob : public ServerJob {
+public:
   explicit FastCGIJob(std::shared_ptr<FastCGITransport> transport)
-    : m_transport(transport)
+    : m_transport(transport), tid(0)
   {}
 
   std::shared_ptr<FastCGITransport> getTransport() { return m_transport; }
   void getRequestStart(struct timespec *outReqStart);
 
+  bool isTidSet() { return tid > 0; }
+  void setTid(pthread_t _tid) { tid = _tid; }
+  pthread_t getTid() { return tid; }
+
 private:
   struct timespec reqStart;
   std::shared_ptr<FastCGITransport> m_transport;
+  pthread_t tid;
 };
 
 struct FastCGITransportTraits {

@@ -214,6 +214,7 @@ private:
   void writeErr(size_t, const folly::AsyncSocketException&) noexcept override;
   void writeSuccess() noexcept override;
 
+  void notifyThread();
 public:
   // Callbacks to send data back to webserver for FastCGITransport. Ideally
   // these would also be private but the transport needs access to them.
@@ -399,6 +400,7 @@ private:
   // and extract other post-completion data. The server/vm will release their
   // shared_ptr when such cleanup is complete.
   std::shared_ptr<FastCGITransport> m_transport;
+  std::shared_ptr<FastCGIJob> m_job;
 
   // Need to guard against passing data from these streams back to the
   // transport after they have been marked as complete. This is particularly

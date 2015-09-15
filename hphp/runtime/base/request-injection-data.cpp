@@ -554,6 +554,14 @@ void RequestInjectionData::setIntervalTimerFlag() {
   getConditionFlags()->fetch_or(RequestInjectionData::IntervalTimerFlag);
 }
 
+void RequestInjectionData::setConnTobeClosedFlag() {
+  getConditionFlags()->fetch_or(RequestInjectionData::ConnTobeClosedFlag);
+}
+
+void RequestInjectionData::clearConnTobeClosedFlag() {
+  getConditionFlags()->fetch_and(~RequestInjectionData::ConnTobeClosedFlag);
+}
+
 ssize_t RequestInjectionData::fetchAndClearFlags() {
   return getConditionFlags()->fetch_and(RequestInjectionData::StickyFlags);
 }

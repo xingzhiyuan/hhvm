@@ -17,6 +17,7 @@
 #ifndef incl_HPHP_HTTP_SERVER_SERVER_WORKER_H
 #define incl_HPHP_HTTP_SERVER_SERVER_WORKER_H
 
+#include <signal.h>
 #include "hphp/runtime/server/server.h"
 #include "hphp/runtime/server/job-queue-vm-stack.h"
 #include "hphp/runtime/server/server-stats.h"
@@ -54,6 +55,7 @@ struct ServerWorker
    * Request handler called by Server.
    */
   virtual void doJob(JobPtr job) {
+    job->setTid(pthread_self());
     doJobImpl(job, false /*abort*/);
   }
   virtual void abortJob(JobPtr job) {
@@ -70,6 +72,12 @@ struct ServerWorker
     m_requestsTimedOutOnQueue =
       ServiceData::createTimeseries("requests_timed_out_on_queue",
                                     {ServiceData::StatsType::COUNT});
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGQUIT);
+    if (sigprocmask(SIG_UNBLOCK, &set, NULL) < 0) {
+      Logger::Error("sigprocmask() error(%d): %s", errno, strerror(errno));
+    }
   }
 
   virtual void onThreadExit() {
@@ -96,7 +104,7 @@ protected:
       transport->onRequestStart(job->getStartTimer());
       m_handler->setupRequest(transport);
 
-      if (abort) {
+      if (abort || transport->isConnTobeClosed()) {
         m_handler->abortRequest(transport);
         return;
       }

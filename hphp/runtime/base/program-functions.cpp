@@ -446,11 +446,6 @@ static void handle_exception_helper(bool& ret,
     if (richErrorMsg) {
       handle_exception_append_bt(errorMsg, e);
     }
-  } catch (const ScriptAbortForConnClosedException &e) {
-    ret = false;
-    error = true;
-    errorMsg = e.what();
-    Logger::Warning("%s", errorMsg.c_str());
   } catch (const Exception &e) {
     bool oldRet = ret;
     bool origError = error;
@@ -1741,6 +1736,13 @@ static void on_timeout(int sig, siginfo_t* info, void* context) {
   }
 }
 
+static void bt_handler(int sig, siginfo_t* info, void* context) {
+  if (sig == SIGQUIT) {
+    auto& data = ThreadInfo::s_threadInfo.getNoCheck()->m_reqInjectionData;
+    data.setConnTobeClosedFlag();
+  }
+}
+
 void hphp_process_init() {
   pthread_attr_t attr;
 // Linux+GNU extension
@@ -1754,6 +1756,11 @@ void hphp_process_init() {
 
   Process::InitProcessStatics();
   init_thread_locals();
+
+  struct sigaction quitaction = {};
+  quitaction.sa_sigaction = bt_handler;
+  quitaction.sa_flags = SA_SIGINFO | SA_NODEFER;
+  sigaction(SIGQUIT, &quitaction, nullptr);
 
   struct sigaction action = {};
   action.sa_sigaction = on_timeout;
@@ -1915,6 +1922,7 @@ bool hphp_invoke(ExecutionContext *context, const std::string &cmd,
 
   MM().resetCouldOOM(isStandardRequest());
   ThreadInfo::s_threadInfo.getNoCheck()->m_reqInjectionData.resetTimer();
+  ThreadInfo::s_threadInfo.getNoCheck()->m_reqInjectionData.clearConnTobeClosedFlag();
 
   LitstrTable::get().setReading();
 
@@ -1937,6 +1945,20 @@ bool hphp_invoke(ExecutionContext *context, const std::string &cmd,
           RuntimeOption::AutoAppendFile != "none") {
         require(RuntimeOption::AutoAppendFile, false,
                 context->getCwd().data(), true);
+      }
+    } catch (const ScriptAbortForConnClosedException &e) {
+      Transport *transport = context->getTransport();
+      if (transport) {
+        Logger::Warning("Script aborted for connection to be closed: "
+          "User(%s:%d), request: %s, Server(%s:%d)",
+          transport->getRemoteAddr(),
+          transport->getRemotePort(),
+          context->getRequestUrl().c_str(),
+          transport->getServerAddr().c_str(),
+          transport->getServerPort());
+      } else {
+        Logger::Warning("Script aborted for connection to be closed: "
+          "request: %s", context->getRequestUrl().c_str());
       }
     } catch (...) {
       handle_invoke_exception(ret, context, errorMsg, error, richErrorMsg);
