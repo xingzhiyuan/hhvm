@@ -375,9 +375,23 @@ void HttpRequestHandler::handleRequest(Transport *transport) {
   hphp_session_init();
   ThreadInfo::s_threadInfo->m_reqInjectionData.
     setTimeout(requestTimeoutSeconds);
+  // requset listen
+  bool isTimeAbnormalOverload = false;
+  if (TimeAnomalyJobRecord::GetTimeAnomalyJobCount(transport->getUrl()) > RuntimeOption::TimeAbnormalOverloadJobCount) {
+    Logger::Error("Time abnormale job count is overloaded");
+    isTimeAbnormalOverload = true;
+  }
+  else {
+    Logger::Warning("Start listen job.");
+    ThreadInfo::s_threadInfo->m_reqInjectionData.
+      setJobListenTimeout(RuntimeOption::JobAnomalyTimeSecond);
+  }
 
   bool ret = false;
   try {
+	  if (isTimeAbnormalOverload) {
+		  throw RouteBreakForJobTimeAbnormalOverloadException();
+	  }
     ret = executePHPRequest(transport, reqURI, m_sourceRootInfo.value(),
                             cacheableDynamicContent);
   } catch (...) {
@@ -389,6 +403,10 @@ void HttpRequestHandler::handleRequest(Transport *transport) {
     } catch (const Eval::DebuggerException &e) {
       code = 200;
       response = e.what();
+    } catch (const RouteBreakForJobTimeAbnormalOverloadException& e) {
+      code = 509;
+      emsg = e.what();
+      Logger::Error(emsg);
     } catch (Object &e) {
       try {
         emsg = e.toString().data();
@@ -409,7 +427,19 @@ void HttpRequestHandler::handleRequest(Transport *transport) {
     transport->onSendEnd();
     hphp_context_exit();
   }
-  HttpProtocol::ClearRecord(ret, tmpfile);
+
+  // listen exit
+    ThreadInfo::s_threadInfo->m_reqInjectionData.
+	  setJobListenTimeout(0);
+    if (ThreadInfo::s_threadInfo->m_reqInjectionData.
+    		m_jobAbNormalRecord.load(std::memory_order_relaxed)) {
+    	Logger::Warning("End the job listen timer.");
+    	TimeAnomalyJobRecord::ReduceTimeAnomalyJob(transport->getUrl());
+    	ThreadInfo::s_threadInfo->m_reqInjectionData.
+		m_jobAbNormalRecord.store(false, std::memory_order_relaxed);
+    }
+
+    HttpProtocol::ClearRecord(ret, tmpfile);
 }
 
 void HttpRequestHandler::abortRequest(Transport* transport) {
@@ -434,6 +464,7 @@ bool HttpRequestHandler::executePHPRequest(Transport *transport,
     }
   }
   context->setTransport(transport);
+  ThreadInfo::s_threadInfo->m_reqInjectionData.setTransport(transport);
 
   string file = reqURI.absolutePath().c_str();
   {

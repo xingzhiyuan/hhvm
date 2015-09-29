@@ -30,6 +30,8 @@
 #include "hphp/runtime/base/thread-info.h"
 #include "hphp/runtime/ext/string/ext_string.h"
 #include "hphp/runtime/vm/debugger-hook.h"
+#include "hphp/runtime/base/program-functions.h"
+#include "hphp/runtime/server/transport.h"
 
 namespace HPHP {
 
@@ -389,6 +391,16 @@ void RequestInjectionData::onTimeout(RequestTimer* timer) {
   } else if (timer == &m_cpuTimer) {
     setCPUTimedOutFlag();
     m_cpuTimer.m_timerActive.store(false, std::memory_order_relaxed);
+   } else if (timer == &m_jobListenTimer) {
+    Logger::Warning("Job Listen timer timeouted!");
+	   m_jobListenTimer.m_timerActive.store(false, std::memory_order_relaxed);
+     if (!m_jobAbNormalRecord.load(std::memory_order_relaxed)) {
+      Transport* transport = getTransport();
+      if (transport != nullptr) {
+        TimeAnomalyJobRecord::RecordTimeAnomalyJob(transport->getUrl());
+        m_jobAbNormalRecord.store(true, std::memory_order_relaxed);
+      }
+    }
   } else {
     always_assert(false && "Unknown timer fired");
   }
@@ -398,12 +410,20 @@ void RequestInjectionData::setTimeout(int seconds) {
   m_timer.setTimeout(seconds);
 }
 
+void RequestInjectionData::setJobListenTimeout(int seconds) {
+	m_jobListenTimer.setTimeout(seconds);
+}
+
 void RequestInjectionData::setCPUTimeout(int seconds) {
   m_cpuTimer.setTimeout(seconds);
 }
 
 int RequestInjectionData::getRemainingTime() const {
   return m_timer.getRemainingTime();
+}
+
+int RequestInjectionData::getReainingJobListenTime() const {
+	return m_jobListenTimer.getRemainingTime();
 }
 
 int RequestInjectionData::getRemainingCPUTime() const {
@@ -427,6 +447,18 @@ void RequestInjectionData::resetTimer(int seconds /* = 0 */) {
   }
   data->setTimeout(seconds);
   data->clearTimedOutFlag();
+}
+
+void RequestInjectionData::resetJobListenTimer(int seconds /* = 0 */) {
+	  auto data = &ThreadInfo::s_threadInfo->m_reqInjectionData;
+	  if (seconds == 0) {
+	    seconds = data->getJobListenTimeout();
+	  } else if (seconds < 0) {
+	    if (!data->getJobListenTimeout()) return;
+	    seconds = -seconds;
+	    if (seconds < data->getReainingJobListenTime()) return;
+	  }
+	  data->setJobListenTimeout(seconds);
 }
 
 void RequestInjectionData::resetCPUTimer(int seconds /* = 0 */) {

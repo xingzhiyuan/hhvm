@@ -32,6 +32,7 @@ namespace HPHP {
 //////////////////////////////////////////////////////////////////////
 
 struct RequestInjectionData;
+class Transport;
 
 //////////////////////////////////////////////////////////////////////
 
@@ -93,6 +94,7 @@ struct RequestInjectionData {
   RequestInjectionData()
       : cflagsPtr(nullptr),
         m_timer(this, CLOCK_REALTIME),
+		m_jobListenTimer(this, CLOCK_REALTIME),
         m_cpuTimer(this, CLOCK_THREAD_CPUTIME_ID),
         m_debuggerAttached(false),
         m_coverage(false),
@@ -114,9 +116,10 @@ struct RequestInjectionData {
 
   std::atomic<ssize_t>* cflagsPtr;  // this points to the real condition flags,
                                     // somewhere in the thread's targetcache
-
+  std::atomic<bool> m_jobAbNormalRecord { false };
 private:
   RequestTimer m_timer;
+  RequestTimer m_jobListenTimer;
   RequestTimer m_cpuTimer;
   bool m_debuggerAttached; // whether there is a debugger attached.
   bool m_coverage;         // is coverage being collected
@@ -170,16 +173,21 @@ private:
   std::string m_userAgent;
   std::vector<std::string> m_allowedDirectories;
   bool m_safeFileAccess;
+  Transport *m_pTransport { nullptr };
 
  public:
   std::string getDefaultMimeType() { return m_defaultMimeType; }
   int getTimeout() const { return m_timer.m_timeoutSeconds; }
+  int getJobListenTimeout() const { return m_timer.m_timeoutSeconds; }
   int getCPUTimeout() const { return m_cpuTimer.m_timeoutSeconds; }
   void setTimeout(int seconds);
+  void setJobListenTimeout(int seconds);
   void setCPUTimeout(int seconds);
   int getRemainingTime() const;
+  int getReainingJobListenTime() const;
   int getRemainingCPUTime() const;
   void resetTimer(int seconds = 0);
+  void resetJobListenTimer(int seconds = 0);
   void resetCPUTimer(int seconds = 0);
   void onTimeout(RequestTimer*);
   bool getJit() const { return m_jit; }
@@ -325,6 +333,14 @@ private:
   }
 
   void onSessionInit();
+
+  void setTransport(Transport* transport) {
+	  m_pTransport = transport;
+  }
+
+  Transport* getTransport() {
+	  return m_pTransport;
+  }
 };
 
 //////////////////////////////////////////////////////////////////////

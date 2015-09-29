@@ -141,6 +141,8 @@ int RuntimeOption::ServerWarmupThrottleRequestCount = 0;
 int RuntimeOption::ServerThreadDropCacheTimeoutSeconds = 0;
 int RuntimeOption::ServerThreadJobLIFOSwitchThreshold = INT_MAX;
 int RuntimeOption::ThreadJobAbortWithConnClosed = false;
+int RuntimeOption::JobAnomalyTimeSecond = 2;
+int RuntimeOption::TimeAbnormalOverloadJobCount = 100;
 int RuntimeOption::ServerThreadJobMaxQueuingMilliSeconds = -1;
 bool RuntimeOption::ServerThreadDropStack = false;
 bool RuntimeOption::ServerHttpSafeMode = false;
@@ -1090,6 +1092,14 @@ void RuntimeOption::Load(IniSetting::Map& ini, Hdf& config,
     Config::Bind(ThreadJobAbortWithConnClosed, ini,
                  server["ThreadJobAbortWithConnClosed"],
                  ThreadJobAbortWithConnClosed);
+    // job listen
+    Config::Bind(JobAnomalyTimeSecond, ini,
+                 server["JobAnomalyTimeSecond"],
+                 JobAnomalyTimeSecond);
+    Config::Bind(TimeAbnormalOverloadJobCount, ini,
+                 server["TimeAbnormalOverloadJobCount"],
+                 TimeAbnormalOverloadJobCount);
+    
     Config::Bind(ServerThreadJobMaxQueuingMilliSeconds, ini,
                  server["ThreadJobMaxQueuingMilliSeconds"], -1);
     Config::Bind(ServerThreadDropStack, ini, server["ThreadDropStack"]);

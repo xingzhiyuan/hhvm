@@ -89,6 +89,14 @@ struct ScriptAbortForConnClosedException : Exception {
   EXCEPTION_COMMON_IMPL(ScriptAbortForConnClosedException);
 };
 
+ struct RouteBreakForJobTimeAbnormalOverloadException : Exception {
+ 	RouteBreakForJobTimeAbnormalOverloadException()
+ 		: Exception("RouteBreakedForJobTimeAbnormalOverload") {
+ 	}
+
+ 	EXCEPTION_COMMON_IMPL(RouteBreakForJobTimeAbnormalOverloadException);
+ };
+
 ///////////////////////////////////////////////////////////////////////////////
 
 }
