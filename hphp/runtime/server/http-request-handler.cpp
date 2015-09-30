@@ -378,14 +378,17 @@ void HttpRequestHandler::handleRequest(Transport *transport) {
   // requset listen
   bool isTimeAbnormalOverload = false;
   if (TimeAnomalyJobRecord::GetTimeAnomalyJobCount(transport->getUrl()) > RuntimeOption::TimeAbnormalOverloadJobCount) {
-    Logger::Error("Time abnormale job count is overloaded");
+    Logger::Error("Request: %s : Time abnormale job count is overloaded", transport->getUrl());
     isTimeAbnormalOverload = true;
   }
   else {
-    Logger::Warning("Start listen job.");
+    Logger::Warning("Start listen job: %s.", transport->getUrl());
     ThreadInfo::s_threadInfo->m_reqInjectionData.
       setJobListenTimeout(RuntimeOption::JobAnomalyTimeSecond);
   }
+
+  // check route breaker
+  bool isRouteBreaked = false;
 
   bool ret = false;
   try {
@@ -433,7 +436,7 @@ void HttpRequestHandler::handleRequest(Transport *transport) {
 	  setJobListenTimeout(0);
     if (ThreadInfo::s_threadInfo->m_reqInjectionData.
     		m_jobAbNormalRecord.load(std::memory_order_relaxed)) {
-    	Logger::Warning("End the job listen timer.");
+    	Logger::Warning("End listen the job: %s .", transport->getUrl());
     	TimeAnomalyJobRecord::ReduceTimeAnomalyJob(transport->getUrl());
     	ThreadInfo::s_threadInfo->m_reqInjectionData.
 		m_jobAbNormalRecord.store(false, std::memory_order_relaxed);

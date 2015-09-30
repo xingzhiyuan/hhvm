@@ -392,11 +392,11 @@ void RequestInjectionData::onTimeout(RequestTimer* timer) {
     setCPUTimedOutFlag();
     m_cpuTimer.m_timerActive.store(false, std::memory_order_relaxed);
    } else if (timer == &m_jobListenTimer) {
-    Logger::Warning("Job Listen timer timeouted!");
 	   m_jobListenTimer.m_timerActive.store(false, std::memory_order_relaxed);
      if (!m_jobAbNormalRecord.load(std::memory_order_relaxed)) {
       Transport* transport = getTransport();
       if (transport != nullptr) {
+    	Logger::Warning("Job %s Listen timer timeouted!", transport->getUrl());
         TimeAnomalyJobRecord::RecordTimeAnomalyJob(transport->getUrl());
         m_jobAbNormalRecord.store(true, std::memory_order_relaxed);
       }
