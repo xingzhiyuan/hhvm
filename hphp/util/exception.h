@@ -97,6 +97,14 @@ struct ScriptAbortForConnClosedException : Exception {
  	EXCEPTION_COMMON_IMPL(RouteBreakForJobTimeAbnormalOverloadException);
  };
 
+ struct RouteBreakForRefusedAfterCheckException : Exception {
+  RouteBreakForRefusedAfterCheckException()
+    : Exception("RouteBreakedForRefusedAfterCheck") {
+  }
+
+  EXCEPTION_COMMON_IMPL(RouteBreakForRefusedAfterCheckException);
+ };
+
 ///////////////////////////////////////////////////////////////////////////////
 
 }

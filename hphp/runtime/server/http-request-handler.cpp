@@ -23,6 +23,7 @@
 #include "hphp/runtime/base/preg.h"
 #include "hphp/runtime/base/program-functions.h"
 #include "hphp/runtime/base/runtime-option.h"
+#include "hphp/runtime/base/builtin-functions.h"
 #include "hphp/runtime/debugger/debugger.h"
 #include "hphp/runtime/ext/std/ext_std_function.h"
 #include "hphp/runtime/server/access-log.h"
@@ -375,7 +376,16 @@ void HttpRequestHandler::handleRequest(Transport *transport) {
   hphp_session_init();
   ThreadInfo::s_threadInfo->m_reqInjectionData.
     setTimeout(requestTimeoutSeconds);
-  // requset listen
+
+  // check request
+  bool isRequestRefusedAfterCheck = false;
+  if (vm_call_user_func("function_exists", make_packed_array("health_check")).toBooleanVal()) {
+    if (!vm_call_user_func("health_check", make_packed_array(transport->getUrl())).toBooleanVal()) {
+      isRequestRefusedAfterCheck = true;
+    }
+  }
+
+  // listen request
   bool isTimeAbnormalOverload = false;
   if (TimeAnomalyJobRecord::GetTimeAnomalyJobCount(transport->getUrl()) > RuntimeOption::TimeAbnormalOverloadJobCount) {
     Logger::Error("Request: %s : Time abnormale job count is overloaded", transport->getUrl());
@@ -387,14 +397,14 @@ void HttpRequestHandler::handleRequest(Transport *transport) {
       setJobListenTimeout(RuntimeOption::JobAnomalyTimeSecond);
   }
 
-  // check route breaker
-  bool isRouteBreaked = false;
-
   bool ret = false;
   try {
 	  if (isTimeAbnormalOverload) {
 		  throw RouteBreakForJobTimeAbnormalOverloadException();
 	  }
+    if (isRequestRefusedAfterCheck) {
+      throw RouteBreakForRefusedAfterCheckException();
+    }
     ret = executePHPRequest(transport, reqURI, m_sourceRootInfo.value(),
                             cacheableDynamicContent);
   } catch (...) {
@@ -407,6 +417,10 @@ void HttpRequestHandler::handleRequest(Transport *transport) {
       code = 200;
       response = e.what();
     } catch (const RouteBreakForJobTimeAbnormalOverloadException& e) {
+      code = 509;
+      emsg = e.what();
+      Logger::Error(emsg);
+    } catch (const RouteBreakForRefusedAfterCheckException& e) {
       code = 509;
       emsg = e.what();
       Logger::Error(emsg);
@@ -431,18 +445,28 @@ void HttpRequestHandler::handleRequest(Transport *transport) {
     hphp_context_exit();
   }
 
-  // listen exit
-    ThreadInfo::s_threadInfo->m_reqInjectionData.
-	  setJobListenTimeout(0);
-    if (ThreadInfo::s_threadInfo->m_reqInjectionData.
-    		m_jobAbNormalRecord.load(std::memory_order_relaxed)) {
-    	Logger::Warning("End listen the job: %s .", transport->getUrl());
-    	TimeAnomalyJobRecord::ReduceTimeAnomalyJob(transport->getUrl());
-    	ThreadInfo::s_threadInfo->m_reqInjectionData.
-		m_jobAbNormalRecord.store(false, std::memory_order_relaxed);
+  // record request
+  int responseCode = transport->getResponseCode();
+  Logger::Warning("After executePHPRequest, responseCode = %d", responseCode);
+  if (vm_call_user_func("function_exists", make_packed_array("health_record")).toBooleanVal()) {
+    if (responseCode >= 500 && responseCode < 599 && responseCode != 509) {
+      vm_call_user_func("health_record", make_packed_array(transport->getUrl(), false));
     }
+    else if (responseCode == 200) {
+      vm_call_user_func("health_record", make_packed_array(transport->getUrl(), true));
+    }
+  }
 
-    HttpProtocol::ClearRecord(ret, tmpfile);
+  // listen exit
+  ThreadInfo::s_threadInfo->m_reqInjectionData.
+  setJobListenTimeout(0);
+  if (ThreadInfo::s_threadInfo->m_reqInjectionData.m_jobAbNormalRecord.load(std::memory_order_relaxed)) {
+    Logger::Warning("End listen the job: %s .", transport->getUrl());
+    TimeAnomalyJobRecord::ReduceTimeAnomalyJob(transport->getUrl());
+    ThreadInfo::s_threadInfo->m_reqInjectionData.m_jobAbNormalRecord.store(false, std::memory_order_relaxed);
+  }
+
+  HttpProtocol::ClearRecord(ret, tmpfile);
 }
 
 void HttpRequestHandler::abortRequest(Transport* transport) {
