@@ -379,8 +379,8 @@ void HttpRequestHandler::handleRequest(Transport *transport) {
 
   // check request
   bool isRequestRefusedAfterCheck = false;
-  if (vm_call_user_func("function_exists", make_packed_array("health_check")).toBooleanVal()) {
-    if (!vm_call_user_func("health_check", make_packed_array(transport->getUrl())).toBooleanVal()) {
+  if (vm_call_user_func("function_exists", make_packed_array("health_check_v2")).toBooleanVal()) {
+    if (!vm_call_user_func("health_check_v2", make_packed_array(transport->getUrl())).toBooleanVal()) {
       isRequestRefusedAfterCheck = true;
     }
   }
@@ -448,12 +448,12 @@ void HttpRequestHandler::handleRequest(Transport *transport) {
   // record request
   int responseCode = transport->getResponseCode();
   Logger::Warning("After executePHPRequest, responseCode = %d", responseCode);
-  if (vm_call_user_func("function_exists", make_packed_array("health_record")).toBooleanVal()) {
+  if (vm_call_user_func("function_exists", make_packed_array("health_record_v2")).toBooleanVal()) {
     if (responseCode >= 500 && responseCode < 599 && responseCode != 509) {
-      vm_call_user_func("health_record", make_packed_array(transport->getUrl(), false));
+      vm_call_user_func("health_record_v2", make_packed_array(transport->getUrl(), false));
     }
     else if (responseCode == 200) {
-      vm_call_user_func("health_record", make_packed_array(transport->getUrl(), true));
+      vm_call_user_func("health_record_v2", make_packed_array(transport->getUrl(), true));
     }
   }
 
