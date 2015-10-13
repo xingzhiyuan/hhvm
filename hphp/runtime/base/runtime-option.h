@@ -123,7 +123,7 @@ public:
   static int ServerThreadJobLIFOSwitchThreshold;
   static int ThreadJobAbortWithConnClosed;
   static int JobAnomalyTimeSecond;
-  static int TimeAbnormalOverloadJobCount;
+  static double TimeAbnormalOverloadJobRate;
   static int ServerThreadJobMaxQueuingMilliSeconds;
   static bool ServerThreadDropStack;
   static bool ServerHttpSafeMode;

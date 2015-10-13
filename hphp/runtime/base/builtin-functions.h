@@ -44,6 +44,8 @@ extern const StaticString s_self;
 extern const StaticString s_parent;
 extern const StaticString s_static;
 
+class ExecutionContext;
+
 ///////////////////////////////////////////////////////////////////////////////
 // operators
 
@@ -112,6 +114,9 @@ vm_decode_function(const Variant& function,
 
 Variant vm_call_user_func(const Variant& function, const Variant& params,
                           bool forwarding = false);
+
+Variant vm_call_user_func_with_context(ExecutionContext* pContext, const Variant& function, const Variant& params,
+                          bool forwarding = false );
 
 Variant invoke_static_method(const String& s, const String& method,
                              const Variant& params, bool fatal = true);

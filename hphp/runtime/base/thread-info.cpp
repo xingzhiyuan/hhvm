@@ -26,11 +26,14 @@
 
 #include <folly/Format.h>
 
+#include "hphp/runtime/base/builtin-functions.h"
+#include "hphp/runtime/base/array-init.h"
 #include "hphp/runtime/base/backtrace.h"
 #include "hphp/runtime/base/code-coverage.h"
 #include "hphp/runtime/base/ini-setting.h"
 #include "hphp/runtime/base/rds.h"
 #include "hphp/runtime/base/types.h"
+#include "hphp/runtime/server/transport.h"
 #include "hphp/runtime/ext/intervaltimer/ext_intervaltimer.h"
 #include "hphp/runtime/ext/string/ext_string.h"
 #include "hphp/util/lock.h"
@@ -198,7 +201,7 @@ ssize_t check_request_surprise(ThreadInfo* info) {
   // Start with any pending exception that might be on the thread.
   auto pendingException = info->m_pendingException;
   info->m_pendingException = nullptr;
-
+  
   if (do_connTobeClosed) {
     p.setCPUTimeout(0);  // Stop CPU timer so we won't time out twice.
     p.setTimeout(0);     // Stop wall timer so we won't time out twice.

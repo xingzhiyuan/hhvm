@@ -35,6 +35,7 @@
 #include "hphp/runtime/server/source-root-info.h"
 #include "hphp/runtime/server/static-content-cache.h"
 #include "hphp/runtime/vm/debugger-hook.h"
+#include "hphp/runtime/vm/native.h"
 #include "hphp/util/alloc.h"
 #include "hphp/util/lock.h"
 #include "hphp/util/mutex.h"
@@ -379,26 +380,44 @@ void HttpRequestHandler::handleRequest(Transport *transport) {
 
   // check request
   bool isRequestRefusedAfterCheck = false;
-  if (vm_call_user_func("function_exists", make_packed_array("health_check_v2")).toBooleanVal()) {
-    if (!vm_call_user_func("health_check_v2", make_packed_array(transport->getUrl())).toBooleanVal()) {
+  if (BuiltinFunction bf = Native::GetBuiltinFunction("health_check_v2").ptr) {
+    typedef bool(*HCheckF)(const String& key);
+
+    if (!((HCheckF)bf)(transport->getUrl())) {
       isRequestRefusedAfterCheck = true;
     }
   }
 
   // listen request
   bool isTimeAbnormalOverload = false;
-  if (TimeAnomalyJobRecord::GetTimeAnomalyJobCount(transport->getUrl()) > RuntimeOption::TimeAbnormalOverloadJobCount) {
-    Logger::Error("Request: %s : Time abnormale job count is overloaded", transport->getUrl());
-    isTimeAbnormalOverload = true;
-  }
-  else {
-    Logger::Warning("Start listen job: %s.", transport->getUrl());
-    ThreadInfo::s_threadInfo->m_reqInjectionData.
-      setJobListenTimeout(RuntimeOption::JobAnomalyTimeSecond);
+  int64_t currentAnomalyJobCount = 0;
+  if (BuiltinFunction bf = Native::GetBuiltinFunction("health_get_time_anomaly_job_count").ptr) {
+    typedef int64_t(*HGetAnoF)(const String& key);
+
+    currentAnomalyJobCount = ((HGetAnoF)bf)(transport->getUrl());
   }
 
-  bool ret = false;
-  try {
+  int64_t totalAnomalyJobCount = 0;
+  if (BuiltinFunction bf = Native::GetBuiltinFunction("health_get_total_time_anomaly_job_count").ptr) {
+    typedef int64_t(*HGetAllAnoF)(const String& key);
+    
+    totalAnomalyJobCount = ((HGetAllAnoF)bf)(transport->getUrl());
+  }
+
+  int64_t otherAnomalyJobCount = totalAnomalyJobCount - currentAnomalyJobCount;
+  if ((otherAnomalyJobCount == RuntimeOption::ServerThreadCount) ||
+    // 当前线路异常个数 / (总异常个数 - 其他线路因异常占用个数) >= 限制阀值百分比
+    (float)currentAnomalyJobCount / (float)(RuntimeOption::ServerThreadCount - otherAnomalyJobCount) >= RuntimeOption::TimeAbnormalOverloadJobRate) {
+    isTimeAbnormalOverload = true;
+    Logger::Error("Url anormale overload: %s", transport->getUrl());
+  }else {
+    Logger::Warning("Start listen url: %s", transport->getUrl());
+    ThreadInfo::s_threadInfo->m_reqInjectionData.
+    setJobListenTimeout(RuntimeOption::JobAnomalyTimeSecond);
+}
+
+bool ret = false;
+try {
 	  if (isTimeAbnormalOverload) {
 		  throw RouteBreakForJobTimeAbnormalOverloadException();
 	  }
@@ -445,24 +464,35 @@ void HttpRequestHandler::handleRequest(Transport *transport) {
     hphp_context_exit();
   }
 
-  // record request
   int responseCode = transport->getResponseCode();
   Logger::Warning("After executePHPRequest, responseCode = %d", responseCode);
-  if (vm_call_user_func("function_exists", make_packed_array("health_record_v2")).toBooleanVal()) {
+
+  // record request
+  if (BuiltinFunction bf = Native::GetBuiltinFunction("health_record_v2").ptr) {
+    typedef bool(*HRecord)(const String& key, bool isHealthy);
+
+    bool result = true;
     if (responseCode >= 500 && responseCode < 599 && responseCode != 509) {
-      vm_call_user_func("health_record_v2", make_packed_array(transport->getUrl(), false));
+      result = false;
     }
     else if (responseCode == 200) {
-      vm_call_user_func("health_record_v2", make_packed_array(transport->getUrl(), true));
+      result = true;
     }
+
+    ((HRecord)bf)(transport->getUrl(), result);
   }
 
   // listen exit
   ThreadInfo::s_threadInfo->m_reqInjectionData.
   setJobListenTimeout(0);
+  Logger::Warning("End listen the url: %s .", transport->getUrl());
   if (ThreadInfo::s_threadInfo->m_reqInjectionData.m_jobAbNormalRecord.load(std::memory_order_relaxed)) {
-    Logger::Warning("End listen the job: %s .", transport->getUrl());
-    TimeAnomalyJobRecord::ReduceTimeAnomalyJob(transport->getUrl());
+    if (BuiltinFunction bf = Native::GetBuiltinFunction("health_reduce_time_anomaly_job_count").ptr){
+      typedef void(*HReduce)(const String& key);
+
+      ((HReduce)bf)(transport->getUrl());
+    }
+
     ThreadInfo::s_threadInfo->m_reqInjectionData.m_jobAbNormalRecord.store(false, std::memory_order_relaxed);
   }
 
@@ -492,6 +522,7 @@ bool HttpRequestHandler::executePHPRequest(Transport *transport,
   }
   context->setTransport(transport);
   ThreadInfo::s_threadInfo->m_reqInjectionData.setTransport(transport);
+  ThreadInfo::s_threadInfo->m_reqInjectionData.setContext(context);
 
   string file = reqURI.absolutePath().c_str();
   {

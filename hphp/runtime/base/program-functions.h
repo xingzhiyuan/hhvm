@@ -18,30 +18,13 @@
 #define incl_HPHP_PROGRAM_FUNCTIONS_H_
 
 #include "hphp/runtime/base/types.h"
-#include "hphp/util/functional.h"
 #include <boost/program_options/parsers.hpp>
-
-#include <tbb/concurrent_hash_map.h>
 
 // Needed for compatibility with oniguruma-5.9.4+
 #define ONIG_ESCAPE_UCHAR_COLLISION
 
 namespace HPHP {
 ///////////////////////////////////////////////////////////////////////////////
-
-////  Record timeout job in each worker thread.
-struct TimeAnomalyJobRecord {
-	using ConcurrentTimeoutJobCountsHashMap =
-				tbb::concurrent_hash_map<std::string, int, stringHashCompare>;
-
-	static void RecordTimeAnomalyJob(const std::string& job);
-	static void ReduceTimeAnomalyJob(const std::string& job);
-	static int GetTimeAnomalyJobCount(const std::string& job);
-
-private:
-	static ConcurrentTimeoutJobCountsHashMap m_timeoutJobCountsMap;
-};
-
 
 /**
  * Main entry point of the entire program.

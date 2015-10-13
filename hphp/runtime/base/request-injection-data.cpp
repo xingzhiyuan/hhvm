@@ -391,14 +391,19 @@ void RequestInjectionData::onTimeout(RequestTimer* timer) {
   } else if (timer == &m_cpuTimer) {
     setCPUTimedOutFlag();
     m_cpuTimer.m_timerActive.store(false, std::memory_order_relaxed);
-   } else if (timer == &m_jobListenTimer) {
-	   m_jobListenTimer.m_timerActive.store(false, std::memory_order_relaxed);
-     if (!m_jobAbNormalRecord.load(std::memory_order_relaxed)) {
+  } else if (timer == &m_jobListenTimer) {
+    m_jobListenTimer.m_timerActive.store(false, std::memory_order_relaxed);
+
+    if (!m_jobAbNormalRecord.load(std::memory_order_relaxed)) {
       Transport* transport = getTransport();
       if (transport != nullptr) {
-    	Logger::Warning("Job %s Listen timer timeouted!", transport->getUrl());
-        TimeAnomalyJobRecord::RecordTimeAnomalyJob(transport->getUrl());
-        m_jobAbNormalRecord.store(true, std::memory_order_relaxed);
+        Logger::Warning("job listen time out %s", transport->getUrl());
+        if (BuiltinFunction bf = Native::GetBuiltinFunction("health_record_time_anomaly_job").ptr) {
+          typedef void(*HRecordAnoF)(const String&);
+          
+          ((HRecordAnoF)bf)(transport->getUrl());
+          m_jobAbNormalRecord.store(true, std::memory_order_relaxed);
+        }
       }
     }
   } else {
@@ -516,6 +521,14 @@ void RequestInjectionData::setTimedOutFlag() {
 
 void RequestInjectionData::clearTimedOutFlag() {
   getConditionFlags()->fetch_and(~RequestInjectionData::TimedOutFlag);
+}
+
+void RequestInjectionData::setJobListenTimedOutFlag() {
+  getConditionFlags()->fetch_or(RequestInjectionData::JobListenTimedOutFlag);
+}
+
+void RequestInjectionData::clearJobListenTimeOutFlag() {
+  getConditionFlags()->fetch_and(~RequestInjectionData::JobListenTimedOutFlag);
 }
 
 void RequestInjectionData::setCPUTimedOutFlag() {

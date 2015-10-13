@@ -33,6 +33,7 @@ namespace HPHP {
 
 struct RequestInjectionData;
 class Transport;
+class ExecutionContext;
 
 //////////////////////////////////////////////////////////////////////
 
@@ -77,13 +78,15 @@ struct RequestInjectionData {
   static const ssize_t CPUTimedOutFlag      = 1 << 10;
   static const ssize_t IntervalTimerFlag    = 1 << 11;
   static const ssize_t ConnTobeClosedFlag   = 1 << 12;
-  static const ssize_t LastFlag             = ConnTobeClosedFlag;
+  static const ssize_t JobListenTimedOutFlag   = 1 << 13;
+  static const ssize_t LastFlag             = JobListenTimedOutFlag;
   // flags that shouldn't be cleared by fetchAndClearFlags, because:
   // fetchAndClearFlags is only supposed to touch flags related to PHP-visible
   // signals/exceptions and resource limits
   static const ssize_t ResourceFlags = RequestInjectionData::MemExceededFlag |
                                        RequestInjectionData::TimedOutFlag |
-                                       RequestInjectionData::CPUTimedOutFlag;
+                                       RequestInjectionData::CPUTimedOutFlag |
+									   JobListenTimedOutFlag;
   static const ssize_t StickyFlags = RequestInjectionData::AsyncEventHookFlag |
                                      RequestInjectionData::DebuggerHookFlag |
                                      RequestInjectionData::EventHookFlag |
@@ -174,6 +177,7 @@ private:
   std::vector<std::string> m_allowedDirectories;
   bool m_safeFileAccess;
   Transport *m_pTransport { nullptr };
+  ExecutionContext *m_pContext { nullptr };
 
  public:
   std::string getDefaultMimeType() { return m_defaultMimeType; }
@@ -308,6 +312,8 @@ private:
   void clearTimedOutFlag();
   void setCPUTimedOutFlag();
   void clearCPUTimedOutFlag();
+  void setJobListenTimedOutFlag();
+  void clearJobListenTimeOutFlag();
   void setSignaledFlag();
   void setAsyncEventHookFlag();
   void clearAsyncEventHookFlag();
@@ -340,6 +346,14 @@ private:
 
   Transport* getTransport() {
 	  return m_pTransport;
+  }
+
+  void setContext(ExecutionContext* pContext) {
+	  m_pContext = pContext;
+  }
+
+  ExecutionContext* getContext() {
+	  return m_pContext;
   }
 };
 

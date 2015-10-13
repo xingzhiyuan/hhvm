@@ -25,6 +25,7 @@
 #include "hphp/runtime/base/execution-context.h"
 #include "hphp/runtime/base/strings.h"
 #include "hphp/runtime/base/unit-cache.h"
+#include "hphp/runtime/base/execution-context.h"
 #include "hphp/runtime/debugger/debugger.h"
 #include "hphp/runtime/ext/process/ext_process.h"
 #include "hphp/runtime/ext/std/ext_std_function.h"
@@ -353,6 +354,26 @@ Variant vm_call_user_func(const Variant& function, const Variant& params,
   }
   Variant ret;
   g_context->invokeFunc((TypedValue*)&ret, f, params, obj, cls,
+                          nullptr, invName, ExecutionContext::InvokeCuf);
+  if (UNLIKELY(ret.getRawType()) == KindOfRef) {
+    tvUnbox(ret.asTypedValue());
+  }
+  return ret;
+}
+
+Variant vm_call_user_func_with_context(ExecutionContext* pContext, const Variant& function, const Variant& params,
+                          bool forwarding /* = false */) {
+  ObjectData* obj = nullptr;
+  Class* cls = nullptr;
+  CallerFrame cf;
+  StringData* invName = nullptr;
+  const Func* f = vm_decode_function(function, cf(), forwarding,
+                                     obj, cls, invName);
+  if (f == nullptr || (!isContainer(params) && !params.isNull())) {
+    return uninit_null();
+  }
+  Variant ret;
+  pContext->invokeFunc((TypedValue*)&ret, f, params, obj, cls,
                           nullptr, invName, ExecutionContext::InvokeCuf);
   if (UNLIKELY(ret.getRawType()) == KindOfRef) {
     tvUnbox(ret.asTypedValue());

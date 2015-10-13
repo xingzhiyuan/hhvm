@@ -109,37 +109,6 @@ extern char **environ;
 
 namespace HPHP {
 
-// Record timeout job in each worker thread.
-TimeAnomalyJobRecord::ConcurrentTimeoutJobCountsHashMap TimeAnomalyJobRecord::m_timeoutJobCountsMap;
-
-void TimeAnomalyJobRecord::RecordTimeAnomalyJob(const std::string& job) {
-  ConcurrentTimeoutJobCountsHashMap::accessor acc;
-  if (!m_timeoutJobCountsMap.find(acc, job)) {
-    m_timeoutJobCountsMap.insert(acc, job);
-  }
-  acc->second++;
-  Logger::Warning("Record time abnormale job count = %d", acc->second);
-}
-
-void TimeAnomalyJobRecord::ReduceTimeAnomalyJob(const std::string& job) {
-  ConcurrentTimeoutJobCountsHashMap::accessor acc;
-  if (m_timeoutJobCountsMap.find(acc, job)) {
-    if (acc->second > 0) acc->second--;
-    Logger::Warning("Reduce time abnormale job count = %d", acc->second);
-  }
-  else {
-    Logger::Error("Reduce a not existed job");
-  }
-}
-
-int TimeAnomalyJobRecord::GetTimeAnomalyJobCount(const std::string& job) {
-	ConcurrentTimeoutJobCountsHashMap::accessor acc;
-  if (!m_timeoutJobCountsMap.find(acc, job)) return 0;
-
-  Logger::Warning("Get time abnormale job count = %d", acc->second);
-  return acc->second;
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 // Forward declarations.
 
