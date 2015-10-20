@@ -378,16 +378,6 @@ void HttpRequestHandler::handleRequest(Transport *transport) {
   ThreadInfo::s_threadInfo->m_reqInjectionData.
     setTimeout(requestTimeoutSeconds);
 
-  // check request
-  bool isRequestRefusedAfterCheck = false;
-  if (BuiltinFunction bf = Native::GetBuiltinFunction("health_check_v2").ptr) {
-    typedef bool(*HCheckF)(const String& key);
-
-    if (!((HCheckF)bf)(transport->getUrl())) {
-      isRequestRefusedAfterCheck = true;
-    }
-  }
-
   // listen request
   bool isTimeAbnormalOverload = false;
   int64_t currentAnomalyJobCount = 0;
@@ -421,9 +411,6 @@ try {
 	  if (isTimeAbnormalOverload) {
 		  throw RouteBreakForJobTimeAbnormalOverloadException();
 	  }
-    if (isRequestRefusedAfterCheck) {
-      throw RouteBreakForRefusedAfterCheckException();
-    }
     ret = executePHPRequest(transport, reqURI, m_sourceRootInfo.value(),
                             cacheableDynamicContent);
   } catch (...) {
@@ -436,10 +423,6 @@ try {
       code = 200;
       response = e.what();
     } catch (const RouteBreakForJobTimeAbnormalOverloadException& e) {
-      code = 509;
-      emsg = e.what();
-      Logger::Error(emsg);
-    } catch (const RouteBreakForRefusedAfterCheckException& e) {
       code = 509;
       emsg = e.what();
       Logger::Error(emsg);
@@ -462,24 +445,6 @@ try {
     transport->sendString(response, code);
     transport->onSendEnd();
     hphp_context_exit();
-  }
-
-  int responseCode = transport->getResponseCode();
-  Logger::Warning("After executePHPRequest, responseCode = %d", responseCode);
-
-  // record request
-  if (BuiltinFunction bf = Native::GetBuiltinFunction("health_record_v2").ptr) {
-    typedef bool(*HRecord)(const String& key, bool isHealthy);
-
-    bool result = true;
-    if (responseCode >= 500 && responseCode < 599 && responseCode != 509) {
-      result = false;
-    }
-    else if (responseCode == 200) {
-      result = true;
-    }
-
-    ((HRecord)bf)(transport->getUrl(), result);
   }
 
   // listen exit
